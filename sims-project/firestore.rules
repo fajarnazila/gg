@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function untuk check admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Helper function untuk check teacher
+    function isTeacher() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'teacher';
+    }
+    
+    // Helper function untuk check student
+    function isStudent() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'student';
+    }
+    
+    // Users Collection
+    match /users/{uid} {
+      // User bisa baca profile mereka sendiri
+      allow read: if request.auth.uid == uid;
+      
+      // Admin bisa baca semua user
+      allow read: if isAdmin();
+      
+      // User bisa update profile mereka sendiri
+      allow update: if request.auth.uid == uid;
+      
+      // Admin bisa create/update/delete user
+      allow create, update, delete: if isAdmin();
+    }
+    
+    // Classes Collection
+    match /classes/{classId} {
+      // Authenticated user bisa baca classes
+      allow read: if request.auth != null;
+      
+      // Admin dan teacher bisa create/update
+      allow create, update: if request.auth != null && (isAdmin() || isTeacher());
+      
+      // Only admin bisa delete
+      allow delete: if isAdmin();
+    }
+    
+    // Grades Collection
+    match /grades/{gradeId} {
+      // Student bisa baca nilai mereka sendiri
+      allow read: if request.auth != null && 
+                     (resource.data.studentId == request.auth.uid || 
+                      isAdmin() || 
+                      isTeacher());
+      
+      // Teacher bisa create/update grades untuk class mereka
+      allow create, update: if request.auth != null && 
+                              (resource.data.teacherId == request.auth.uid || 
+                               isAdmin());
+      
+      // Only admin bisa delete
+      allow delete: if isAdmin();
+    }
+    
+    // Attendance Collection
+    match /attendance/{attendanceId} {
+      // Student bisa baca attendance mereka
+      allow read: if request.auth != null && 
+                     request.auth.uid in resource.data.records.map(r => r.studentId) ||
+                     isAdmin() || 
+                     isTeacher();
+      
+      // Teacher bisa create/update attendance
+      allow create, update: if request.auth != null && 
+                              (resource.data.teacherId == request.auth.uid || 
+                               isAdmin());
+      
+      // Only admin bisa delete
+      allow delete: if isAdmin();
+    }
+    
+    // Payments Collection
+    match /payments/{paymentId} {
+      // Student bisa baca payment mereka sendiri
+      allow read: if request.auth != null && 
+                     (resource.data.studentId == request.auth.uid || 
+                      isAdmin());
+      
+      // Treasurer dan admin bisa create/update
+      allow create, update: if request.auth != null && 
+                              get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['treasurer', 'admin'];
+      
+      // Only admin bisa delete
+      allow delete: if isAdmin();
+    }
+    
+    // Health Collection (optional)
+    match /health/{document=**} {
+      allow read, write: if isAdmin();
+    }
+  }
+}

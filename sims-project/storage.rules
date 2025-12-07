@@ -1,0 +1,38 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Default: deny semua
+    
+    // User bisa upload file ke folder mereka
+    match /users/{uid}/{allPaths=**} {
+      allow read, write: if request.auth.uid == uid;
+    }
+    
+    // Admin bisa upload ke mana saja
+    match /{allPaths=**} {
+      allow read, write: if request.auth != null && 
+        get(/databases/cloud.firestore/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Teacher bisa upload class materials
+    match /classes/{classId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && 
+        get(/databases/cloud.firestore/documents/users/$(request.auth.uid)).data.role in ['teacher', 'admin'];
+    }
+    
+    // Student bisa upload assignments
+    match /assignments/{assignmentId}/{uid}/{allPaths=**} {
+      allow read: if request.auth.uid == uid || 
+        get(/databases/cloud.firestore/documents/users/$(request.auth.uid)).data.role == 'teacher' ||
+        get(/databases/cloud.firestore/documents/users/$(request.auth.uid)).data.role == 'admin';
+      
+      allow write: if request.auth.uid == uid && request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    // Size limit: Max 5MB untuk semua file
+    match /{allPaths=**} {
+      allow write: if request.resource.size < 5 * 1024 * 1024;
+    }
+  }
+}
