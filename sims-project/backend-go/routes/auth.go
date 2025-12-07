@@ -2,11 +2,11 @@ package routes
 
 import (
 	"net/http"
+	"os"
 	"sims-backend-go/config"
 	"sims-backend-go/models"
 	"time"
 
-	"cloud.google.com/go/firestore"
 	"firebase.google.com/go/auth"
 	"github.com/gin-gonic/gin"
 )
@@ -46,9 +46,9 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"uid":    token.UID,
-		"email":  token.Claims["email"],
-		"role":   role,
+		"uid":     token.UID,
+		"email":   token.Claims["email"],
+		"role":    role,
 		"profile": userDoc.Data(),
 	})
 }
@@ -63,7 +63,7 @@ func Login(c *gin.Context) {
 	// In Firebase, login is typically handled on the frontend
 	// This endpoint can be used for custom authentication logic
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Use Firebase Auth on frontend for login",
+		"message":  "Use Firebase Auth on frontend for login",
 		"redirect": "/dashboard",
 	})
 }
@@ -100,12 +100,12 @@ func GetProfile(c *gin.Context) {
 	userDoc.DataTo(&userData)
 
 	c.JSON(http.StatusOK, gin.H{
-		"uid":         token.UID,
-		"email":       token.Claims["email"],
-		"role":        userData.Role,
-		"profile":     userData,
-		"lastLogin":   userData.LastLogin,
-		"isActive":    userData.IsActive,
+		"uid":       token.UID,
+		"email":     token.Claims["email"],
+		"role":      userData.Role,
+		"profile":   userData,
+		"lastLogin": userData.LastLogin,
+		"isActive":  userData.IsActive,
 	})
 }
 
@@ -195,4 +195,71 @@ func ChangePassword(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Password changed successfully"})
+}
+
+func SignUp(c *gin.Context) {
+	var req models.SignUpRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// Validate secret key
+	expectedSecretKey := os.Getenv("SIGNUP_SECRET_KEY")
+	if expectedSecretKey == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Server configuration error"})
+		return
+	}
+	if req.SecretKey != expectedSecretKey {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Invalid secret key"})
+		return
+	}
+
+	ctx := c.Request.Context()
+
+	// Create user in Firebase Auth
+	params := (&auth.UserToCreate{}).
+		Email(req.Email).
+		Password(req.Password).
+		DisplayName(req.DisplayName).
+		EmailVerified(false)
+
+	userRecord, err := config.AuthClient.CreateUser(ctx, params)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user: " + err.Error()})
+		return
+	}
+
+	// Save user data to Firestore
+	client, err := config.FirebaseApp.Firestore(ctx)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
+		return
+	}
+	defer client.Close()
+
+	now := time.Now()
+	userData := models.User{
+		ID:          userRecord.UID,
+		Email:       req.Email,
+		DisplayName: req.DisplayName,
+		Role:        req.Role,
+		IsActive:    true,
+		CreatedAt:   now,
+		UpdatedAt:   now,
+	}
+
+	_, err = client.Collection("users").Doc(userRecord.UID).Set(ctx, userData)
+	if err != nil {
+		// If Firestore save fails, try to delete the created user from Auth
+		config.AuthClient.DeleteUser(ctx, userRecord.UID)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user data"})
+		return
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "User created successfully",
+		"uid":     userRecord.UID,
+		"email":   userRecord.Email,
+	})
 }

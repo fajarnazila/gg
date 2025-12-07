@@ -49,6 +49,7 @@ func main() {
 		auth.POST("/verify", routes.VerifyToken)
 		auth.POST("/login", routes.Login)
 		auth.POST("/logout", routes.Logout)
+		auth.POST("/signup", routes.SignUp)
 	}
 
 	// Protected routes

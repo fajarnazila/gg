@@ -33,6 +33,10 @@ function App() {
           path="/login"
           element={currentUser ? <Navigate to="/dashboard" /> : <Login />}
         />
+        <Route
+          path="/signup"
+          element={currentUser ? <Navigate to="/dashboard" /> : <SignUp />}
+        />
 
         {/* Protected Routes */}
         <Route

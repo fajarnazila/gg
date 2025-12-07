@@ -3,23 +3,23 @@ package models
 import "time"
 
 type User struct {
-	ID                string    `json:"id" firestore:"id"`
-	Email             string    `json:"email" firestore:"email"`
-	DisplayName       string    `json:"displayName" firestore:"displayName"`
-	Role              string    `json:"role" firestore:"role"` // admin, teacher, student, parent, vice_principal, treasurer, exam_supervisor, school_health
-	Phone             string    `json:"phone" firestore:"phone"`
-	Address           string    `json:"address" firestore:"address"`
-	EmergencyContact  string    `json:"emergencyContact" firestore:"emergencyContact"`
-	ProfilePicture    string    `json:"profilePicture" firestore:"profilePicture"`
-	DateOfBirth       *time.Time `json:"dateOfBirth" firestore:"dateOfBirth"`
-	Gender            string    `json:"gender" firestore:"gender"`
-	StudentID         string    `json:"studentId" firestore:"studentId"`
-	ClassID           string    `json:"classId" firestore:"classId"`
-	ParentID          string    `json:"parentId" firestore:"parentId"`
-	IsActive          bool      `json:"isActive" firestore:"isActive"`
-	LastLogin         *time.Time `json:"lastLogin" firestore:"lastLogin"`
-	CreatedAt         time.Time `json:"createdAt" firestore:"createdAt"`
-	UpdatedAt         time.Time `json:"updatedAt" firestore:"updatedAt"`
+	ID               string     `json:"id" firestore:"id"`
+	Email            string     `json:"email" firestore:"email"`
+	DisplayName      string     `json:"displayName" firestore:"displayName"`
+	Role             string     `json:"role" firestore:"role"` // admin, teacher, student, parent, vice_principal, treasurer, exam_supervisor, school_health
+	Phone            string     `json:"phone" firestore:"phone"`
+	Address          string     `json:"address" firestore:"address"`
+	EmergencyContact string     `json:"emergencyContact" firestore:"emergencyContact"`
+	ProfilePicture   string     `json:"profilePicture" firestore:"profilePicture"`
+	DateOfBirth      *time.Time `json:"dateOfBirth" firestore:"dateOfBirth"`
+	Gender           string     `json:"gender" firestore:"gender"`
+	StudentID        string     `json:"studentId" firestore:"studentId"`
+	ClassID          string     `json:"classId" firestore:"classId"`
+	ParentID         string     `json:"parentId" firestore:"parentId"`
+	IsActive         bool       `json:"isActive" firestore:"isActive"`
+	LastLogin        *time.Time `json:"lastLogin" firestore:"lastLogin"`
+	CreatedAt        time.Time  `json:"createdAt" firestore:"createdAt"`
+	UpdatedAt        time.Time  `json:"updatedAt" firestore:"updatedAt"`
 }
 
 type UserCreateRequest struct {
@@ -75,4 +75,12 @@ type UpdateProfileRequest struct {
 	Address          string `json:"address"`
 	EmergencyContact string `json:"emergencyContact"`
 	ProfilePicture   string `json:"profilePicture"`
+}
+
+type SignUpRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	Password    string `json:"password" binding:"required,min=6"`
+	DisplayName string `json:"displayName" binding:"required"`
+	Role        string `json:"role" binding:"required"`
+	SecretKey   string `json:"secretKey" binding:"required"`
 }
