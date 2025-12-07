@@ -14,7 +14,7 @@ import {
   Select,
   MenuItem,
 } from '@mui/material';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 
 function Login() {
   const navigate = useNavigate();
