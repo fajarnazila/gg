@@ -1,14 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import {
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  createUserWithEmailAndPassword,
-  updateProfile
-} from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '../firebase/config';
 
+// Development mode AuthContext - no Firebase dependencies
 export const AuthContext = createContext();
 
 export const useAuth = () => {
@@ -19,80 +11,90 @@ export const useAuth = () => {
   return context;
 };
 
+// Mock user data for development
+const mockUsers = {
+  'admin@example.com': { email: 'admin@example.com', role: 'admin', displayName: 'Admin User' },
+  'teacher@example.com': { email: 'teacher@example.com', role: 'teacher', displayName: 'Teacher User' },
+  'student@example.com': { email: 'student@example.com', role: 'student', displayName: 'Student User' },
+  'parent@example.com': { email: 'parent@example.com', role: 'parent', displayName: 'Parent User' },
+  'vice-principal@example.com': { email: 'vice-principal@example.com', role: 'vice-principal', displayName: 'Vice Principal' },
+  'treasurer@example.com': { email: 'treasurer@example.com', role: 'treasurer', displayName: 'Treasurer' },
+  'exam-supervisor@example.com': { email: 'exam-supervisor@example.com', role: 'exam-supervisor', displayName: 'Exam Supervisor' },
+  'school-health@example.com': { email: 'school-health@example.com', role: 'school-health', displayName: 'School Health' },
+};
+
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Login function
+  // Mock login function
   const login = async (email, password) => {
-    try {
-      const result = await signInWithEmailAndPassword(auth, email, password);
-      return result;
-    } catch (error) {
-      throw error;
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    if (password !== 'password123') {
+      throw new Error('Invalid credentials');
     }
+
+    const user = mockUsers[email];
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    const mockUser = {
+      uid: email.replace('@', '_').replace('.', '_'),
+      email: user.email,
+      displayName: user.displayName
+    };
+
+    setCurrentUser(mockUser);
+    setUserProfile(user);
+    localStorage.setItem('mockUser', JSON.stringify({ user: mockUser, profile: user }));
+
+    return { user: mockUser };
   };
 
-  // Register function
+  // Mock register function
   const register = async (email, password, displayName, role = 'student') => {
-    try {
-      const result = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(result.user, { displayName });
+    // Simulate API delay
+    await new Promise(resolve => setTimeout(resolve, 1000));
 
-      // Create user profile in Firestore
-      await setDoc(doc(db, 'users', result.user.uid), {
-        uid: result.user.uid,
-        email,
-        displayName,
-        role,
-        createdAt: new Date(),
-        isActive: true
-      });
+    const mockUser = {
+      uid: email.replace('@', '_').replace('.', '_'),
+      email,
+      displayName
+    };
 
-      return result;
-    } catch (error) {
-      throw error;
-    }
+    const profile = { ...mockUser, role };
+    setCurrentUser(mockUser);
+    setUserProfile(profile);
+    localStorage.setItem('mockUser', JSON.stringify({ user: mockUser, profile }));
+
+    return { user: mockUser };
   };
 
-  // Logout function
+  // Mock logout function
   const logout = async () => {
-    try {
-      await signOut(auth);
-    } catch (error) {
-      throw error;
-    }
+    setCurrentUser(null);
+    setUserProfile(null);
+    localStorage.removeItem('mockUser');
   };
 
-  // Get user profile from Firestore
-  const getUserProfile = async (uid) => {
-    try {
-      const userDoc = await getDoc(doc(db, 'users', uid));
-      if (userDoc.exists()) {
-        return userDoc.data();
-      }
-      return null;
-    } catch (error) {
-      console.error('Error getting user profile:', error);
-      return null;
-    }
-  };
-
+  // Initialize auth state from localStorage
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      if (user) {
+    const savedUser = localStorage.getItem('mockUser');
+    if (savedUser) {
+      try {
+        const { user, profile } = JSON.parse(savedUser);
         setCurrentUser(user);
-        const profile = await getUserProfile(user.uid);
         setUserProfile(profile);
-      } else {
-        setCurrentUser(null);
-        setUserProfile(null);
+      } catch (error) {
+        console.error('Error parsing saved user:', error);
+        localStorage.removeItem('mockUser');
       }
-      setLoading(false);
-    });
-
-    return unsubscribe;
+    }
+    setLoading(false);
   }, []);
 
   const value = {
